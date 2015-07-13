@@ -1,5 +1,6 @@
 package com.syl.concurrency.cache;
 
+import java.math.BigInteger;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -29,6 +30,8 @@ public class Memoizer2<A, V> implements Computable<A, V> {
 	 */
 	@Override
 	public V compute(A a) throws InterruptedException {
+		System.out.println("Thread "+Thread.currentThread().getId()+": compute "+a);
+		
 		if(hashmap.containsKey(a)) {
 			return hashmap.get(a);
 		}
@@ -38,4 +41,39 @@ public class Memoizer2<A, V> implements Computable<A, V> {
 		return result;
 	}
 
+	
+	/**
+	 * Main 函数
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		Computable<String, BigInteger> comp = new ExpensiveFunction();
+		Memoizer2<String, BigInteger> memo = new Memoizer2<>(comp);
+		
+		for(int i=0; i<5; i++) {
+			new Thread(new MyJob(memo)).start();
+		}
+	}
+	
+	
+	private static class MyJob implements Runnable {
+		private final Memoizer2<String, BigInteger> memo;
+		
+		public MyJob(Memoizer2<String, BigInteger> memo) {
+			this.memo = memo;
+		}
+		
+		@Override
+		public void run() {
+			int num = (int)(Math.random() * (5+1));
+			try {
+				memo.compute(""+num);
+				System.out.println("Thread "+Thread.currentThread().getId()+": end "+num);
+			} catch (InterruptedException e) {
+				//e.printStackTrace();
+				Thread.currentThread().interrupt();
+			}
+		}
+		
+	}
 }

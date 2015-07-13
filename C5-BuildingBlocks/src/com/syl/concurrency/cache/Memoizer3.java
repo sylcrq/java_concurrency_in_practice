@@ -1,5 +1,6 @@
 package com.syl.concurrency.cache;
 
+import java.math.BigInteger;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,7 +31,9 @@ public class Memoizer3<A, V> implements Computable<A, V>{
 	 * 缺点：特定情况下仍然有重复计算的可能性，虽然比Memoizer2低很多
 	 */
 	@Override
-	public V compute(final A a) throws InterruptedException {		
+	public V compute(final A a) throws InterruptedException {
+		System.out.println("Thread "+Thread.currentThread().getId()+": compute "+a);
+		
 		FutureTask<V> value = cache.get(a);
 		
 		if(value == null) {
@@ -44,6 +47,7 @@ public class Memoizer3<A, V> implements Computable<A, V>{
 			
 			value = task;
 			cache.put(a, task);
+			//cache.putIfAbsent(a, task);
 			task.run();  // 注意
 		}
 		
@@ -64,5 +68,39 @@ public class Memoizer3<A, V> implements Computable<A, V>{
 		} else {
 			throw new IllegalStateException("Not unchecked", t);
 		}
+	}
+	
+	/**
+	 * Main 函数
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		Computable<String, BigInteger> comp = new ExpensiveFunction();
+		Memoizer3<String, BigInteger> memo = new Memoizer3<>(comp);
+		
+		for(int i=0; i<5; i++) {
+			new Thread(new MyJob(memo)).start();
+		}
+	}
+	
+	private static class MyJob implements Runnable {
+		private final Memoizer3<String, BigInteger> memo;
+		
+		public MyJob(Memoizer3<String, BigInteger> memo) {
+			this.memo = memo;
+		}
+		
+		@Override
+		public void run() {
+			int num = (int)(Math.random() * (5+1));
+			try {
+				memo.compute(""+num);
+				System.out.println("Thread "+Thread.currentThread().getId()+": end "+num);
+			} catch (InterruptedException e) {
+				//e.printStackTrace();
+				Thread.currentThread().interrupt();
+			}
+		}
+		
 	}
 }
